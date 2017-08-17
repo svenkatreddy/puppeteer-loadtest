@@ -1,5 +1,7 @@
 # puppeteer-loadtest
 
+[![Build Status](https://travis-ci.org/svenkatreddy/puppeteer-loadtest.svg?branch=master)](https://travis-ci.org/svenkatreddy/puppeteer-loadtest)
+
 puppeteer-loadtest provides a simple way to launch multiple puppeteer instances in parallel to run a simple load test on your site.
 
 puppeteer requires atleast V7 of node to run.
