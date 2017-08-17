@@ -1,6 +1,7 @@
 #! /usr/bin/env node
 'use strict';
 
+process.env.DEBUG = "puppeteer-loadtest";
 const exec = require('child_process').exec;
 const argv = require('minimist')(process.argv.slice(2));
 const debug = require('debug')('puppeteer-loadtest');
@@ -21,6 +22,8 @@ if(!samplesRequested) {
 if(!concurrencyRequested) {
   debug('no concurrency is specified, using 1 as default')
 }
+
+debug('puppeteer-loadtest is loading...');
 
 const cmdToExecute = `node ${file}`;
 const results = {};
