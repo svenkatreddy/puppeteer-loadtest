@@ -1,28 +1,32 @@
 #! /usr/bin/env node
 'use strict';
 
-process.env.DEBUG = "puppeteer-loadtest";
 const exec = require('child_process').exec;
 const argv = require('minimist')(process.argv.slice(2));
-const debug = require('debug')('puppeteer-loadtest');
 const perf = require('execution-time')();
 
 const file = argv.file;
 const samplesRequested = argv.s || 1;
 const concurrencyRequested = argv.c || 1;
+const silent = argv.silent || false;
 
-if(!file) {
+if (!file) {
   return console.error('cannot find --file option');
 }
 
-if(!samplesRequested) {
+if (!samplesRequested) {
   debug('no sample is specified, using 1 as default')
 }
 
-if(!concurrencyRequested) {
+if (!concurrencyRequested) {
   debug('no concurrency is specified, using 1 as default')
 }
 
+if (!silent) {
+  process.env.DEBUG = "puppeteer-loadtest";
+}
+
+const debug = require('debug')('puppeteer-loadtest');
 debug('puppeteer-loadtest is loading...');
 
 const cmdToExecute = `node ${file}`;
