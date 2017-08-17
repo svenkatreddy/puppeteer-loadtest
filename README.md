@@ -10,11 +10,11 @@ Install via npm:
 
 ## Usage
 
-To run a basic load test, just supply the name of a CasperJS script to run:
+To run a basic load test, just supply the name of a puppeteer script to run:
 
-    $ DEBUG=* puppeteer-loadtest --file=sample.js
+    $ puppeteer-loadtest --file=sample.js
 
-This will run the specified CasperJS script once in PhantomJS instance.
+This will run the specified puppeteer script once in chrome headless instance.
 
 ### Parameters
 
@@ -24,8 +24,18 @@ This will run the specified CasperJS script once in PhantomJS instance.
 
     $ puppeteer-loadtest --s=100 --c=25 --file=sample.js
     
-This will run a total of 100 runs through the specified CasperJS script across 25 concurrent PhantomJS instances.
+This will run a total of 100 runs through the specified puppeteer script across 25 concurrent chrome headless instances.
+
+
+### Examples
+
+    $ puppeteer-loadtest --file=sample.js
     
+    $ puppeteer-loadtest --file=./test/sample.js  --s=100 --c=25
+    
+    $ puppeteer-loadtest --file=./test/sample.js  --s=100 --c=25 --silent=true
+    
+    $ puppeteer-loadtest --file=./test/sample.js  -s 100 -c 25
 
 ## Contributing
 
