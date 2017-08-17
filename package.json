@@ -1,0 +1,43 @@
+{
+  "name": "puppeteer-loadtest",
+  "version": "1.0.0",
+  "description": "loadtest puppeteer (Headless Chrome API) script using node",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "mocha ./test/index-test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/svenkatreddy/puppeteer-loadtest.git"
+  },
+  "keywords": [
+    "puppeteer",
+    "loadtest",
+    "chrome",
+    "headless",
+    "automation",
+    "script"
+  ],
+  "author": "svenkatreddy",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/svenkatreddy/puppeteer-loadtest/issues"
+  },
+  "bin": {
+    "casperjs-loadtest": "index.js"
+  },
+  "homepage": "https://github.com/svenkatreddy/puppeteer-loadtest#readme",
+  "dependencies": {
+    "debug": "^3.0.0",
+    "execution-time": "^1.2.0",
+    "minimist": "^1.2.0"
+  },
+  "devDependencies": {
+    "mocha": "^3.5.0",
+    "mock-require": "^2.0.2",
+    "ultimate-chai": "^4.0.0"
+  }
+}
