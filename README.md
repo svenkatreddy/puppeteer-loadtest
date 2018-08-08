@@ -41,6 +41,12 @@ This will run a total of 100 runs through the specified puppeteer script across 
     $ puppeteer-loadtest --file=./test/sample.js  --s=100 --c=25 --silent=true
     
     $ puppeteer-loadtest --file=./test/sample.js  -s 100 -c 25
+    
+   
+## Feedback   
+
+please provide feedback or feature requests using issues link
+    
 
 ## Contributing
 
