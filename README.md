@@ -42,6 +42,11 @@ This will run a total of 100 runs through the specified puppeteer script across 
     
     $ puppeteer-loadtest --file=./test/sample.js  -s 100 -c 25
     
+    
+## Contributors
+
+[David Madden](https://github.com/moose56)
+    
    
 ## Feedback   
 
@@ -55,4 +60,3 @@ please provide feedback or feature requests using issues link
 3. Commit your changes (`git commit -am 'Add some feature'`)
 4. Push to the branch (`git push origin my-new-feature`)
 5. Create new Pull Request
-
