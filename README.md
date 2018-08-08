@@ -6,8 +6,6 @@
 
 puppeteer-loadtest provides a simple way to launch multiple puppeteer instances in parallel to run a simple load test on your site.
 
-puppeteer requires atleast V7 of node to run.
-
 
 ## Installation
 
