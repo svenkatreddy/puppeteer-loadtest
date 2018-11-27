@@ -1,7 +1,8 @@
 #! /usr/bin/env node
 'use strict';
 
-const debug = require('debug')('puppeteer-loadtest');
+const createDebug = require('debug');
+const debug = createDebug('puppeteer-loadtest');
 const exec = require('child_process').exec;
 const argv = require('minimist')(process.argv.slice(2));
 const perf = require('execution-time')();
@@ -16,7 +17,7 @@ if (!file) {
 }
 
 if (!silent) {
-  process.env.DEBUG = "puppeteer-loadtest";
+  createDebug.enable('puppeteer-loadtest');
 }
 
 if (!samplesRequested) {
