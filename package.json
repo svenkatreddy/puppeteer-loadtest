@@ -31,7 +31,7 @@
   },
   "homepage": "https://github.com/svenkatreddy/puppeteer-loadtest#readme",
   "dependencies": {
-    "debug": "^3.1.0",
+    "debug": "^4.1.0",
     "execution-time": "^1.2.0",
     "minimist": "^1.2.0"
   },
