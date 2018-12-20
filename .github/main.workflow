@@ -1,11 +1,17 @@
 workflow "publish to npm" {
   on = "push"
-  resolves = ["test", "publish"]
+  resolves = ["install", "test", "publish"]
+}
+
+action "install" {
+  uses = "actions/npm@e7aaefe"
+  args = "install"
 }
 
 action "test" {
   uses = "actions/npm@e7aaefe"
   args = "test"
+  needs = ["install"]
 }
 
 action "publish" {
