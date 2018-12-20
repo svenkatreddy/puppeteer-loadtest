@@ -6,5 +6,5 @@ workflow "publish to npm" {
 action "publish" {
   uses = "actions/npm@e7aaefe"
   args = "publish"
-  secrets = ["NPM_PUBLISH_SVENKATREDDY_NPM"]
+  secrets = ["NPM_AUTH_TOKEN"]
 }
