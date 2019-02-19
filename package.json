@@ -36,7 +36,7 @@
     "minimist": "^1.2.0"
   },
   "devDependencies": {
-    "mocha": "^5.2.0",
+    "mocha": "^6.0.0",
     "mock-require": "^2.0.2",
     "ultimate-chai": "^4.1.0"
   }
