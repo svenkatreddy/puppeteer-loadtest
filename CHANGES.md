@@ -1,2 +1,2 @@
 ## 1.0.6
-- update pacakges
+- update pacakges, publish.
