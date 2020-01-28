@@ -1,6 +1,6 @@
 {
   "name": "puppeteer-loadtest",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "loadtest puppeteer (Headless Chrome API) script using node",
   "main": "index.js",
   "directories": {
@@ -31,13 +31,13 @@
   },
   "homepage": "https://github.com/svenkatreddy/puppeteer-loadtest#readme",
   "dependencies": {
-    "debug": "^3.1.0",
+    "debug": "^4.1.1",
     "execution-time": "^1.2.0",
     "minimist": "^1.2.0"
   },
   "devDependencies": {
     "mocha": "^7.0.1",
-    "mock-require": "^2.0.2",
+    "mock-require": "^3.0.3",
     "ultimate-chai": "^4.1.0"
   }
 }
