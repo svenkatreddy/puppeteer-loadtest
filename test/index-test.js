@@ -12,7 +12,7 @@ const index = require('../');
 
 describe('index.js', () => {
   context('testing index', () => {
-    it('should call exec with coommand', (done) => {
+    it('should call exec with command', (done) => {
       expect(execStub).to.have.been.called();
       expect(execStub).to.have.been.calledWith('node ./test/basic.js');
       done();

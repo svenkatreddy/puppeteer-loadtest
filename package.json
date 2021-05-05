@@ -1,6 +1,6 @@
 {
   "name": "puppeteer-loadtest",
-  "version": "1.0.7",
+  "version": "2.0.0",
   "description": "loadtest puppeteer (Headless Chrome API) script using node",
   "main": "index.js",
   "directories": {
@@ -33,7 +33,7 @@
   "dependencies": {
     "debug": "^4.1.1",
     "execution-time": "^1.2.0",
-    "minimist": "^1.2.0"
+    "minimist": "^1.2.5"
   },
   "devDependencies": {
     "mocha": "^7.0.1",
