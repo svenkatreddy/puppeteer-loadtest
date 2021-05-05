@@ -1,6 +1,6 @@
 {
   "name": "puppeteer-loadtest",
-  "version": "1.0.7",
+  "version": "2.0.0",
   "description": "loadtest puppeteer (Headless Chrome API) script using node",
   "main": "index.js",
   "directories": {
