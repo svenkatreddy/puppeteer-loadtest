@@ -26,6 +26,7 @@ This will run the specified puppeteer script once in chrome headless instance.
 `--s` flag is to mention sample size
 `--c` flag is to mention number of concurrent executions per sample
 `--silent` boolean to enable or disable logs
+`--outputFile` send performance results to output file
 
     $ puppeteer-loadtest --s=100 --c=25 --file=sample.js
     
@@ -41,6 +42,8 @@ This will run a total of 100 runs through the specified puppeteer script across 
     $ puppeteer-loadtest --file=./test/sample.js  --s=100 --c=25 --silent=true
     
     $ puppeteer-loadtest --file=./test/sample.js  -s 100 -c 25
+
+    $ puppeteer-loadtest --file=./test/sample.js  -s 100 -c 25 --outputFile=performance.json
     
     
 ## Contributors
