@@ -33,8 +33,7 @@
   "dependencies": {
     "debug": "^4.1.1",
     "execution-time": "^1.2.0",
-    "minimist": "^1.2.5",
-    "puppeteer": "^9.1.0"
+    "minimist": "^1.2.5"
   },
   "devDependencies": {
     "mocha": "^7.0.1",
