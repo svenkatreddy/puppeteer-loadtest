@@ -27,13 +27,14 @@
     "url": "https://github.com/svenkatreddy/puppeteer-loadtest/issues"
   },
   "bin": {
-    "puppeteer-loadtest": "index.js"
+    "puppeteer-loadtest": "bin.js"
   },
   "homepage": "https://github.com/svenkatreddy/puppeteer-loadtest#readme",
   "dependencies": {
     "debug": "^4.1.1",
     "execution-time": "^1.2.0",
-    "minimist": "^1.2.5"
+    "minimist": "^1.2.5",
+    "puppeteer": "^9.1.1"
   },
   "devDependencies": {
     "mocha": "^7.0.1",
