@@ -6,9 +6,6 @@
 
 puppeteer-loadtest provides a simple way to launch multiple puppeteer instances in parallel to run a simple load test on your site.
 
-Make sure `puppeteer` is installed globally.
-
-
 ## Installation
 
 Install via npm:
@@ -46,6 +43,19 @@ This will run a total of 100 runs through the specified puppeteer script across 
     $ puppeteer-loadtest --file=./test/sample.js  -s 100 -c 25
 
     $ puppeteer-loadtest --file=./test/sample.js  -s 100 -c 25 --outputFile=performance.json
+
+
+### use as node module 
+
+    ```
+    const startPuppeteerLoadTest = require('puppeteer-loadtest');
+    const results = await startPuppeteerLoadTest({
+        file, // path to file
+        samplesRequested, // number of samples requested
+        concurrencyRequested, // number of concurrency requested
+    });
+    console.log(results);
+    ```
     
     
 ## Contributors

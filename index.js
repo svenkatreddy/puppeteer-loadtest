@@ -1,66 +1,48 @@
-#! /usr/bin/env node
 'use strict';
 
 const createDebug = require('debug');
 const debug = createDebug('puppeteer-loadtest');
 const exec = require('child_process').exec;
-const argv = require('minimist')(process.argv.slice(2));
 const perf = require('execution-time')();
-const fs = require('fs');
 
-const file = argv.file;
-const samplesRequested = argv.s || 1;
-const concurrencyRequested = argv.c || 1;
-const silent = argv.silent || false;
-const outputFile = argv.outputFile;
-
-if (!file) {
-  return console.error('cannot find --file option');
-}
-
-if (!silent) {
-  createDebug.enable('puppeteer-loadtest');
-}
-
-if (!samplesRequested) {
-  debug('no sample is specified, using 1 as default')
-}
-
-if (!concurrencyRequested) {
-  debug('no concurrency is specified, using 1 as default')
+const defaultOptions = {
+  file: '',
+  samplesRequested: '',
+  concurrencyRequested: 1,
+  results: {},
+  samplesCount: 0,
 }
 
 debug('puppeteer-loadtest is loading...');
 
-const cmdToExecute = `node ${file}`;
-const results = {};
-let samplesCount = 0;
 
-const startSampleLogPerformance = () => {
+const startSampleLogPerformance = (results, samplesCount) => {
   perf.start(`sampleCall${samplesCount + 1}`);
   results[`sample${samplesCount + 1}`] = {};
 };
 
-const stopSampleLogPerformance = () => {
+const stopSampleLogPerformance = (results, samplesCount) => {
   results[`sample${samplesCount + 1}`].sample = perf.stop(`sampleCall${samplesCount + 1}`);
 };
 
-const startConcurrencyLogPerformance = (concurrencyCount) => {
+const startConcurrencyLogPerformance = (results, concurrencyCount, samplesCount) => {
   perf.start(`sample${samplesCount + 1}concurrencyCount${concurrencyCount + 1}`);
   results[`sample${samplesCount + 1}`].concurrency = {};
 }
 
-const stopConcurrencyLogPerformance = (concurrencyCount) => {
-  results[`sample${samplesCount + 1}`].concurrency[`${concurrencyCount + 1}`] = perf.stop((`sample${samplesCount + 1}concurrencyCount${concurrencyCount + 1}`));
+const stopConcurrencyLogPerformance = (results, concurrencyCount, samplesCount) => {
+  if(results[`sample${samplesCount + 1}`]) {
+    results[`sample${samplesCount + 1}`].concurrency[`${concurrencyCount + 1}`] = perf.stop((`sample${samplesCount + 1}concurrencyCount${concurrencyCount + 1}`));
+  }
 }
 
 
-const executeTheCommand = function(cmd, concurrencyCount) {
+const executeTheCommand = function({ cmd, concurrencyCount, samplesCount, results }) {
   return new Promise((resolve, reject) => {
-    startConcurrencyLogPerformance(concurrencyCount);
+    startConcurrencyLogPerformance(results, concurrencyCount, samplesCount);
     exec(cmd, function(error, stdout, stderr) {
       debug(`sample: ${samplesCount}, concurrent: ${concurrencyCount}`);
-      stopConcurrencyLogPerformance(concurrencyCount);
+      stopConcurrencyLogPerformance(results, concurrencyCount, samplesCount);
       if(stderr) reject(stderr);
       if(error) reject(error);
       resolve(stdout);
@@ -68,28 +50,43 @@ const executeTheCommand = function(cmd, concurrencyCount) {
   });   
 };
 
-const doAnotherSample = async () => { 
+const doAnotherSample = async (options) => { 
+  let {
+    concurrencyRequested,
+    file,
+    samplesCount,
+    samplesRequested,
+    results,
+  } = options;
+
   if(samplesCount < samplesRequested) {
-    startSampleLogPerformance();
-    await doConcurrency(results);
-    stopSampleLogPerformance();
+    startSampleLogPerformance(results, samplesCount);
+    await doConcurrency({ results,  samplesCount, concurrencyRequested, file });
+    stopSampleLogPerformance(results, samplesCount);
     samplesCount += 1;
-    return doAnotherSample();
+    return doAnotherSample({
+      concurrencyRequested,
+      file,
+      samplesCount,
+      samplesRequested,
+      results,
+    });
   }
-  if (outputFile) {
-    fs.writeFileSync(outputFile, JSON.stringify(results, null, "\t"));
-  }
-  if (!silent) {
-    console.log(JSON.stringify(results, null, "\t"));
-  }
+
+  return results;
 };
 
-const doConcurrency = async (results) => {
+const doConcurrency = async ({ results,  samplesCount, concurrencyRequested, file}) => {
   const promisesArray = [];
 
   for(let i=0; i < concurrencyRequested; i += 1) {
     promisesArray.push(
-      executeTheCommand(cmdToExecute, i, results)
+      executeTheCommand({ 
+        cmd: `node ${file}`,
+        concurrencyCount: i,
+        results,
+        samplesCount,
+      })
     );
   }
 
@@ -104,4 +101,9 @@ const doConcurrency = async (results) => {
   return values;
 };
 
-doAnotherSample();
+function startPuppeteerLoadTest(paramOptions) {
+  const options = Object.assign({}, defaultOptions, paramOptions);
+  return doAnotherSample(options);
+}
+
+module.exports = startPuppeteerLoadTest;
