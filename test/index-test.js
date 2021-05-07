@@ -7,7 +7,7 @@ mock('child_process', { exec: execStub });
 
 process.argv.push("--file=./test/basic.js");
 process.env.DEBUG = 'puppeteer-loadtest'; 
-const index = require('../');
+const index = require('../bin');
 
 
 describe('index.js', () => {
