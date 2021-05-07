@@ -1,0 +1,52 @@
+{
+	"sample1": {
+		"concurrency": {
+			"1": {
+				"name": "sample1concurrencyCount1",
+				"time": 1230.192623,
+				"words": "1.23 s",
+				"preciseWords": "1.230192623 s",
+				"verboseWords": "1 second 230 milliseconds 192 microseconds 623 nanoseconds"
+			},
+			"2": {
+				"name": "sample1concurrencyCount2",
+				"time": 1228.022296,
+				"words": "1.23 s",
+				"preciseWords": "1.228022296 s",
+				"verboseWords": "1 second 228 milliseconds 22 microseconds 296 nanoseconds"
+			}
+		},
+		"sample": {
+			"name": "sampleCall1",
+			"time": 1234.006079,
+			"words": "1.23 s",
+			"preciseWords": "1.234006079 s",
+			"verboseWords": "1 second 234 milliseconds 6 microseconds 79 nanoseconds"
+		}
+	},
+	"sample2": {
+		"concurrency": {
+			"1": {
+				"name": "sample2concurrencyCount1",
+				"time": 1253.335088,
+				"words": "1.25 s",
+				"preciseWords": "1.253335088 s",
+				"verboseWords": "1 second 253 milliseconds 335 microseconds 88 nanoseconds"
+			},
+			"2": {
+				"name": "sample2concurrencyCount2",
+				"time": 1185.066443,
+				"words": "1.19 s",
+				"preciseWords": "1.185066443 s",
+				"verboseWords": "1 second 185 milliseconds 66 microseconds 443 nanoseconds"
+			}
+		},
+		"sample": {
+			"name": "sampleCall2",
+			"time": 1253.648083,
+			"words": "1.25 s",
+			"preciseWords": "1.253648083 s",
+			"verboseWords": "1 second 253 milliseconds 648 microseconds 83 nanoseconds"
+		}
+	}
+}
