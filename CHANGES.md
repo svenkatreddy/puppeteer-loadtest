@@ -1,3 +1,6 @@
+## 2.1.1
+- update dependency packages.
+
 ## 2.1.0
 - Add option to use package as node module.
 
