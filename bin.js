@@ -13,6 +13,7 @@ const file = argv.file;
 const samplesRequested = argv.s || 1;
 const concurrencyRequested = argv.c || 1;
 const silent = argv.silent || false;
+const addIdArgument = argv.addId || false;
 const outputFile = argv.outputFile;
 
 if (!file) {
@@ -39,8 +40,9 @@ const start = async () => {
     file,
     samplesRequested,
     concurrencyRequested,
+    addIdArgument
   });
-  
+
   if (results) {
     if (outputFile) {
       fs.writeFileSync(outputFile, JSON.stringify(results, null, "\t"));

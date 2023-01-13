@@ -11,6 +11,7 @@ const defaultOptions = {
   concurrencyRequested: 1,
   results: {},
   samplesCount: 0,
+  addIdArgument: false
 }
 
 debug('puppeteer-loadtest is loading...');
@@ -47,21 +48,22 @@ const executeTheCommand = function({ cmd, concurrencyCount, samplesCount, result
       if(error) reject(error);
       resolve(stdout);
     });
-  });   
+  });
 };
 
-const doAnotherSample = async (options) => { 
+const doAnotherSample = async (options) => {
   let {
     concurrencyRequested,
     file,
     samplesCount,
     samplesRequested,
     results,
+    addIdArgument
   } = options;
 
   if(samplesCount < samplesRequested) {
     startSampleLogPerformance(results, samplesCount);
-    await doConcurrency({ results,  samplesCount, concurrencyRequested, file });
+    await doConcurrency({ results,  samplesCount, concurrencyRequested, file, addIdArgument });
     stopSampleLogPerformance(results, samplesCount);
     samplesCount += 1;
     return doAnotherSample({
@@ -76,13 +78,13 @@ const doAnotherSample = async (options) => {
   return results;
 };
 
-const doConcurrency = async ({ results,  samplesCount, concurrencyRequested, file}) => {
+const doConcurrency = async ({ results,  samplesCount, concurrencyRequested, file, addIdArgument}) => {
   const promisesArray = [];
 
   for(let i=0; i < concurrencyRequested; i += 1) {
     promisesArray.push(
-      executeTheCommand({ 
-        cmd: `node ${file}`,
+      executeTheCommand({
+        cmd: addIdArgument ? `node ${file} ${i}` : `node ${file}`,
         concurrencyCount: i,
         results,
         samplesCount,
