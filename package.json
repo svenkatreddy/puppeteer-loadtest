@@ -34,7 +34,7 @@
     "debug": "^4.1.1",
     "execution-time": "^1.2.0",
     "minimist": "^1.2.6",
-    "puppeteer": "^10.4.0"
+    "puppeteer": "^19.9.1"
   },
   "devDependencies": {
     "mocha": "^9.1.2",
