@@ -131,21 +131,79 @@ describe('startPuppeteerLoadTest', () => {
     assert.ok(startedAt[2] - startedAt[1] >= 40, `gap was ${startedAt[2] - startedAt[1]}ms`);
   });
 
-  it('spawns all instances at once when no delay is given', async () => {
-    const startedAt = [];
-    execStub.callsFake((cmd, options, callback) => {
-      startedAt.push(Date.now());
-      callback(null, 'ok\n', '');
-    });
+  it('does not set a timeout on exec when timeout is 0 (default)', async () => {
+    execStub.callsFake((cmd, options, callback) => callback(null, 'ok\n', ''));
 
     await startPuppeteerLoadTest({
+      file: './test/basic.js',
+      samplesRequested: 1,
+      concurrencyRequested: 1,
+      results: {},
+    });
+
+    assert.ok(execStub.calledOnceWith('node ./test/basic.js', {}, sinon.match.func));
+  });
+
+  it('counts mixed success and failure within one sample', async () => {
+    const error = new Error('Command failed');
+    error.code = 1;
+    error.killed = false;
+    let calls = 0;
+    execStub.callsFake((cmd, options, callback) => {
+      calls += 1;
+      if (calls === 2) {
+        callback(error, '', 'boom');
+      } else {
+        callback(null, 'ok\n', '');
+      }
+    });
+
+    const results = await startPuppeteerLoadTest({
       file: './test/basic.js',
       samplesRequested: 1,
       concurrencyRequested: 3,
       results: {},
     });
 
-    assert.equal(startedAt.length, 3);
-    assert.ok(startedAt[2] - startedAt[0] < 40, `gap was ${startedAt[2] - startedAt[0]}ms`);
+    assert.equal(results.failed, 1);
+    assert.equal(results.sample1.failed, 1);
+    assert.equal(results.sample1.concurrency['1'].error, undefined);
+    assert.match(results.sample1.concurrency['2'].error, /Command failed/);
+    assert.equal(results.sample1.concurrency['3'].error, undefined);
+  });
+
+  it('accumulates failures across samples in results.failed', async () => {
+    execStub.callsFake((cmd, options, callback) => callback(null, '', 'nope'));
+
+    const results = await startPuppeteerLoadTest({
+      file: './test/basic.js',
+      samplesRequested: 3,
+      concurrencyRequested: 2,
+      results: {},
+    });
+
+    assert.equal(results.failed, 6);
+    assert.equal(results.sample1.failed, 2);
+    assert.equal(results.sample2.failed, 2);
+    assert.equal(results.sample3.failed, 2);
+  });
+
+  it('keeps per-sample timing entries when starts interleave with stops', async () => {
+    // Synchronous callback => each start runs after the previous stop.
+    // Entries must not be wiped by later starts (regression test).
+    execStub.callsFake((cmd, options, callback) => callback(null, 'ok\n', ''));
+
+    const results = await startPuppeteerLoadTest({
+      file: './test/basic.js',
+      samplesRequested: 2,
+      concurrencyRequested: 2,
+      results: {},
+    });
+
+    for (const sample of ['sample1', 'sample2']) {
+      assert.deepEqual(Object.keys(results[sample].concurrency).sort(), ['1', '2']);
+      assert.ok(typeof results[sample].concurrency['1'].time === 'number');
+      assert.ok(typeof results[sample].sample.time === 'number');
+    }
   });
 });

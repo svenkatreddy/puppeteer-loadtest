@@ -5,6 +5,8 @@
 
 const assert = require('node:assert/strict');
 const { execFile } = require('node:child_process');
+const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 
 const bin = path.join(__dirname, '..', 'bin.js');
@@ -93,5 +95,79 @@ describe('bin.js', function () {
 
     assert.equal(exitCode, 1);
     assert.match(stderr, /cannot find --file option/);
+  });
+
+  it('staggers instance starts with --delay (#86)', async () => {
+    const started = Date.now();
+    const { exitCode, stdout } = await runBin([
+      `--file=${fixture('ok.js')}`,
+      '--s=1',
+      '--c=3',
+      '--delay=400',
+    ]);
+
+    assert.equal(exitCode, 0);
+    const results = parseResults(stdout);
+    assert.equal(results.failed, 0);
+    // 2 gaps x 400ms between 3 staggered starts.
+    assert.ok(Date.now() - started >= 650, 'instances were not staggered');
+  });
+
+  it('writes results JSON to --outputFile', async () => {
+    const outputFile = path.join(os.tmpdir(), `puppeteer-loadtest-${Date.now()}.json`);
+    try {
+      const { exitCode, stdout } = await runBin([
+        `--file=${fixture('ok.js')}`,
+        '--s=1',
+        '--c=1',
+        `--outputFile=${outputFile}`,
+      ]);
+
+      assert.equal(exitCode, 0);
+      const fromFile = JSON.parse(fs.readFileSync(outputFile, 'utf8'));
+      assert.deepEqual(fromFile, parseResults(stdout));
+      assert.equal(fromFile.failed, 0);
+    } finally {
+      fs.rmSync(outputFile, { force: true });
+    }
+  });
+
+  it('warns and falls back to 0 for an invalid --timeout', async () => {
+    const { exitCode, stdout, stderr } = await runBin([
+      `--file=${fixture('ok.js')}`,
+      '--s=1',
+      '--c=1',
+      '--timeout=banana',
+    ]);
+
+    assert.equal(exitCode, 0);
+    assert.match(stderr, /invalid --timeout value "banana", using 0/);
+    assert.equal(parseResults(stdout).failed, 0);
+  });
+
+  it('--silent suppresses the results JSON on stdout', async () => {
+    const { exitCode, stdout } = await runBin([
+      `--file=${fixture('ok.js')}`,
+      '--s=1',
+      '--c=1',
+      '--silent',
+    ]);
+
+    assert.equal(exitCode, 0);
+    assert.equal(stdout.trim(), '');
+  });
+
+  it('reports a missing script file as a failure', async () => {
+    const { exitCode, stdout } = await runBin([
+      `--file=${fixture('does-not-exist.js')}`,
+      '--s=1',
+      '--c=1',
+    ]);
+
+    assert.equal(exitCode, 1);
+    const results = parseResults(stdout);
+    assert.equal(results.failed, 1);
+    assert.equal(results.sample1.failed, 1);
+    assert.ok(results.sample1.concurrency['1'].error.length > 0);
   });
 });

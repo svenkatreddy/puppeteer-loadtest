@@ -4,6 +4,8 @@
 - Surface instance failures: each failure is logged with its sample/instance, recorded in the results JSON (`failed` counts, per-instance `error`/`timedOut`/`exitCode`), and the CLI exits non-zero when any instance fails (issue #24).
 - Replace Travis CI with GitHub Actions; refresh the npm publish workflow (Node 20, current actions).
 - Update dependencies (puppeteer 25, mocha 12); require Node >= 20.
+- CI runs on Node 22 and 24; `.nvmrc` pins 24; npm publish workflow uses Node 24.
+- Expanded test suite: 20 tests (unit + end-to-end CLI).
 
 ## 2.1.1
 - update dependency packages.
