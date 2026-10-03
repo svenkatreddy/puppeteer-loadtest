@@ -1,19 +1,21 @@
 'use strict';
 
-// Unit tests for index.js with child_process.exec mocked out.
+// Unit tests for index.js with child_process.execFile mocked out.
 // No real browser or script is launched here; bin.js is covered in bin-test.js.
 
 const assert = require('node:assert/strict');
 const sinon = require('sinon');
 const mock = require('mock-require');
 
+const MAX_BUFFER = 10 * 1024 * 1024;
+
 describe('startPuppeteerLoadTest', () => {
-  let execStub;
+  let execFileStub;
   let startPuppeteerLoadTest;
 
   beforeEach(() => {
-    execStub = sinon.stub();
-    mock('child_process', { exec: execStub });
+    execFileStub = sinon.stub();
+    mock('child_process', { execFile: execFileStub });
     startPuppeteerLoadTest = mock.reRequire('../index');
   });
 
@@ -21,8 +23,8 @@ describe('startPuppeteerLoadTest', () => {
     mock.stopAll();
   });
 
-  it('runs `node <file>` once per concurrency slot', async () => {
-    execStub.callsFake((cmd, options, callback) => callback(null, 'ok\n', ''));
+  it('runs the file with the current node binary, once per concurrency slot', async () => {
+    execFileStub.callsFake((nodePath, args, options, callback) => callback(null, 'ok\n', ''));
 
     const results = await startPuppeteerLoadTest({
       file: './test/basic.js',
@@ -31,16 +33,23 @@ describe('startPuppeteerLoadTest', () => {
       results: {},
     });
 
-    assert.equal(execStub.callCount, 3);
-    assert.ok(execStub.alwaysCalledWith('node ./test/basic.js', {}, sinon.match.func));
+    assert.equal(execFileStub.callCount, 3);
+    assert.ok(
+      execFileStub.alwaysCalledWith(
+        process.execPath,
+        ['./test/basic.js'],
+        { maxBuffer: MAX_BUFFER },
+        sinon.match.func
+      )
+    );
     assert.equal(results.failed, 0);
     assert.equal(results.sample1.failed, 0);
     assert.deepEqual(Object.keys(results.sample1.concurrency).sort(), ['1', '2', '3']);
     assert.equal(results.sample1.concurrency['1'].error, undefined);
   });
 
-  it('passes the timeout through to exec (#82)', async () => {
-    execStub.callsFake((cmd, options, callback) => callback(null, 'ok\n', ''));
+  it('passes the timeout through to execFile with SIGKILL (#82)', async () => {
+    execFileStub.callsFake((nodePath, args, options, callback) => callback(null, 'ok\n', ''));
 
     await startPuppeteerLoadTest({
       file: './test/basic.js',
@@ -50,15 +59,37 @@ describe('startPuppeteerLoadTest', () => {
       results: {},
     });
 
-    assert.ok(execStub.calledOnceWith('node ./test/basic.js', { timeout: 5000 }, sinon.match.func));
+    assert.ok(
+      execFileStub.calledOnceWith(
+        process.execPath,
+        ['./test/basic.js'],
+        { maxBuffer: MAX_BUFFER, timeout: 5000, killSignal: 'SIGKILL' },
+        sinon.match.func
+      )
+    );
+  });
+
+  it('does not set a timeout on execFile when timeout is 0 (default)', async () => {
+    execFileStub.callsFake((nodePath, args, options, callback) => callback(null, 'ok\n', ''));
+
+    await startPuppeteerLoadTest({
+      file: './test/basic.js',
+      samplesRequested: 1,
+      concurrencyRequested: 1,
+      results: {},
+    });
+
+    const options = execFileStub.firstCall.args[2];
+    assert.equal(options.timeout, undefined);
+    assert.equal(options.killSignal, undefined);
   });
 
   it('marks a killed instance as timed out and counts the failure (#82, #24)', async () => {
     const timeoutError = new Error('Command timed out');
     timeoutError.killed = true;
-    timeoutError.signal = 'SIGTERM';
+    timeoutError.signal = 'SIGKILL';
     timeoutError.code = null;
-    execStub.callsFake((cmd, options, callback) => callback(timeoutError, '', ''));
+    execFileStub.callsFake((nodePath, args, options, callback) => callback(timeoutError, '', ''));
 
     const results = await startPuppeteerLoadTest({
       file: './test/basic.js',
@@ -76,7 +107,7 @@ describe('startPuppeteerLoadTest', () => {
   });
 
   it('records stderr output as a failure (#24)', async () => {
-    execStub.callsFake((cmd, options, callback) => callback(null, '', 'something broke\n'));
+    execFileStub.callsFake((nodePath, args, options, callback) => callback(null, '', 'something broke\n'));
 
     const results = await startPuppeteerLoadTest({
       file: './test/basic.js',
@@ -96,7 +127,7 @@ describe('startPuppeteerLoadTest', () => {
     const error = new Error('Command failed: node ./test/basic.js\nboom');
     error.code = 1;
     error.killed = false;
-    execStub.callsFake((cmd, options, callback) => callback(error, '', 'boom'));
+    execFileStub.callsFake((nodePath, args, options, callback) => callback(error, '', 'boom'));
 
     const results = await startPuppeteerLoadTest({
       file: './test/basic.js',
@@ -110,46 +141,12 @@ describe('startPuppeteerLoadTest', () => {
     assert.equal(results.sample1.concurrency['1'].timedOut, false);
   });
 
-  it('staggers concurrent instance starts by the delay (#86)', async () => {
-    const startedAt = [];
-    execStub.callsFake((cmd, options, callback) => {
-      startedAt.push(Date.now());
-      callback(null, 'ok\n', '');
-    });
-
-    await startPuppeteerLoadTest({
-      file: './test/basic.js',
-      samplesRequested: 1,
-      concurrencyRequested: 3,
-      delay: 60,
-      results: {},
-    });
-
-    assert.equal(startedAt.length, 3);
-    // Generous margins: each start should lag the previous by ~the delay.
-    assert.ok(startedAt[1] - startedAt[0] >= 40, `gap was ${startedAt[1] - startedAt[0]}ms`);
-    assert.ok(startedAt[2] - startedAt[1] >= 40, `gap was ${startedAt[2] - startedAt[1]}ms`);
-  });
-
-  it('does not set a timeout on exec when timeout is 0 (default)', async () => {
-    execStub.callsFake((cmd, options, callback) => callback(null, 'ok\n', ''));
-
-    await startPuppeteerLoadTest({
-      file: './test/basic.js',
-      samplesRequested: 1,
-      concurrencyRequested: 1,
-      results: {},
-    });
-
-    assert.ok(execStub.calledOnceWith('node ./test/basic.js', {}, sinon.match.func));
-  });
-
   it('counts mixed success and failure within one sample', async () => {
     const error = new Error('Command failed');
     error.code = 1;
     error.killed = false;
     let calls = 0;
-    execStub.callsFake((cmd, options, callback) => {
+    execFileStub.callsFake((nodePath, args, options, callback) => {
       calls += 1;
       if (calls === 2) {
         callback(error, '', 'boom');
@@ -173,7 +170,7 @@ describe('startPuppeteerLoadTest', () => {
   });
 
   it('accumulates failures across samples in results.failed', async () => {
-    execStub.callsFake((cmd, options, callback) => callback(null, '', 'nope'));
+    execFileStub.callsFake((nodePath, args, options, callback) => callback(null, '', 'nope'));
 
     const results = await startPuppeteerLoadTest({
       file: './test/basic.js',
@@ -191,7 +188,7 @@ describe('startPuppeteerLoadTest', () => {
   it('keeps per-sample timing entries when starts interleave with stops', async () => {
     // Synchronous callback => each start runs after the previous stop.
     // Entries must not be wiped by later starts (regression test).
-    execStub.callsFake((cmd, options, callback) => callback(null, 'ok\n', ''));
+    execFileStub.callsFake((nodePath, args, options, callback) => callback(null, 'ok\n', ''));
 
     const results = await startPuppeteerLoadTest({
       file: './test/basic.js',
@@ -205,5 +202,63 @@ describe('startPuppeteerLoadTest', () => {
       assert.ok(typeof results[sample].concurrency['1'].time === 'number');
       assert.ok(typeof results[sample].sample.time === 'number');
     }
+  });
+
+  it('does not share results between runs', async () => {
+    execFileStub.callsFake((nodePath, args, options, callback) => callback(null, 'ok\n', ''));
+
+    const first = await startPuppeteerLoadTest({
+      file: './test/basic.js',
+      samplesRequested: 1,
+      concurrencyRequested: 1,
+    });
+    const second = await startPuppeteerLoadTest({
+      file: './test/basic.js',
+      samplesRequested: 1,
+      concurrencyRequested: 1,
+    });
+
+    assert.notEqual(first, second);
+    assert.deepEqual(Object.keys(second), ['failed', 'sample1']);
+    assert.equal(second.failed, 0);
+  });
+
+  it('staggers concurrent instance starts by the delay (#86)', async () => {
+    const startedAt = [];
+    execFileStub.callsFake((nodePath, args, options, callback) => {
+      startedAt.push(Date.now());
+      callback(null, 'ok\n', '');
+    });
+
+    await startPuppeteerLoadTest({
+      file: './test/basic.js',
+      samplesRequested: 1,
+      concurrencyRequested: 3,
+      delay: 60,
+      results: {},
+    });
+
+    assert.equal(startedAt.length, 3);
+    // Generous margins: each start should lag the previous by ~the delay.
+    assert.ok(startedAt[1] - startedAt[0] >= 40, `gap was ${startedAt[1] - startedAt[0]}ms`);
+    assert.ok(startedAt[2] - startedAt[1] >= 40, `gap was ${startedAt[2] - startedAt[1]}ms`);
+  });
+
+  it('spawns all instances at once when no delay is given', async () => {
+    const startedAt = [];
+    execFileStub.callsFake((nodePath, args, options, callback) => {
+      startedAt.push(Date.now());
+      callback(null, 'ok\n', '');
+    });
+
+    await startPuppeteerLoadTest({
+      file: './test/basic.js',
+      samplesRequested: 1,
+      concurrencyRequested: 3,
+      results: {},
+    });
+
+    assert.equal(startedAt.length, 3);
+    assert.ok(startedAt[2] - startedAt[0] < 40, `gap was ${startedAt[2] - startedAt[0]}ms`);
   });
 });

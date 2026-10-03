@@ -35,6 +35,13 @@
   ],
   "license": "ISC",
   "main": "index.js",
+  "files": [
+    "index.js",
+    "bin.js",
+    "README.md",
+    "CHANGES.md",
+    "LICENSE"
+  ],
   "name": "puppeteer-loadtest",
   "repository": {
     "type": "git",

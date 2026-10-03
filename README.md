@@ -22,12 +22,14 @@ This will run the specified puppeteer script once in chrome headless instance.
 
 ### Parameters
 
-`--s` flag is to mention sample size
-`--c` flag is to mention number of concurrent executions per sample
-`--timeout` (`-t`) flag kills an instance if it runs longer than the given milliseconds (0 = no limit, the default)
-`--delay` (`-d`) flag waits the given milliseconds between spawning concurrent instances, so N Chromium launches don't all hit at once (0 = spawn all at once, the default)
+`--file` path to the puppeteer script to run (required)
+`--s` number of samples to run (default: 1; must be a positive integer)
+`--c` number of concurrent executions per sample (default: 1; must be a positive integer)
+`--timeout` (`-t`) kills an instance if it runs longer than the given milliseconds (0 = no limit, the default)
+`--delay` (`-d`) waits the given milliseconds between spawning concurrent instances, so N Chromium launches don't all hit at once (0 = spawn all at once, the default)
 `--silent` boolean to enable or disable logs
 `--outputFile` send performance results to output file
+`--help` (`-h`) show usage information
 
     $ puppeteer-loadtest --s=100 --c=25 --file=sample.js
     
@@ -35,7 +37,7 @@ This will run a total of 100 runs through the specified puppeteer script across 
 
 ### Failure reporting
 
-If a script instance exits non-zero, writes to stderr, or is killed by `--timeout`, the failure is logged with its sample and instance number, recorded in the results JSON (`failed` counts plus per-instance `error`, `timedOut`, and `exitCode`), and the CLI exits with a non-zero status so scripts and CI can detect it:
+An instance counts as failed when its script exits non-zero, writes to stderr, or is killed by `--timeout`. (Note: anything on stderr counts, even warnings — keep noisy scripts' stderr clean or redirect it.) The failure is logged with its sample and instance number, recorded in the results JSON (`failed` counts plus per-instance `error`, `timedOut`, and `exitCode`), and the CLI exits with a non-zero status so scripts and CI can detect it:
 
     $ puppeteer-loadtest --file=sample.js --timeout=30000
     puppeteer-loadtest sample 1: instance 2 failed: timed out after 30000ms and was killed
@@ -43,22 +45,40 @@ If a script instance exits non-zero, writes to stderr, or is killed by `--timeou
     $ echo $?
     1
 
+### Results JSON
+
+Each run produces an object keyed by sample, with per-instance timings and a failure count:
+
+    {
+        "failed": 0,
+        "sample1": {
+            "sample": { "time": 1234.5, "...": "..." },
+            "concurrency": {
+                "1": { "time": 1201.2, "...": "..." },
+                "2": { "time": 1198.7, "...": "...", "error": "boom", "timedOut": false, "exitCode": 1 }
+            },
+            "failed": 1
+        }
+    }
+
+`failed` at the top level is the total across all samples. A successful instance entry carries only timing fields; a failed one also carries `error`, `timedOut`, and `exitCode`.
+
 
 ### Examples
 
     $ puppeteer-loadtest --file=sample.js
     
-    $ puppeteer-loadtest --file=./test/sample.js  --s=100 --c=25
+    $ puppeteer-loadtest --file=./test/basic.js  --s=100 --c=25
     
-    $ puppeteer-loadtest --file=./test/sample.js  --s=100 --c=25 --silent=true
+    $ puppeteer-loadtest --file=./test/basic.js  --s=100 --c=25 --silent=true
     
-    $ puppeteer-loadtest --file=./test/sample.js  -s 100 -c 25
+    $ puppeteer-loadtest --file=./test/basic.js  -s 100 -c 25
 
-    $ puppeteer-loadtest --file=./test/sample.js  -s 100 -c 25 --outputFile=performance.json
+    $ puppeteer-loadtest --file=./test/basic.js  -s 100 -c 25 --outputFile=performance.json
 
-    $ puppeteer-loadtest --file=./test/sample.js  -s 100 -c 25 --delay=2000
+    $ puppeteer-loadtest --file=./test/basic.js  -s 100 -c 25 --delay=2000
 
-    $ puppeteer-loadtest --file=./test/sample.js  -s 100 -c 25 --timeout=60000
+    $ puppeteer-loadtest --file=./test/basic.js  -s 100 -c 25 --timeout=60000
 
 
 ### use as node module 

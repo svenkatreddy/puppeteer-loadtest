@@ -170,4 +170,44 @@ describe('bin.js', function () {
     assert.equal(results.sample1.failed, 1);
     assert.ok(results.sample1.concurrency['1'].error.length > 0);
   });
+
+  it('rejects an invalid --s value instead of silently running nothing', async () => {
+    const { exitCode, stderr } = await runBin([
+      `--file=${fixture('ok.js')}`,
+      '--s=banana',
+    ]);
+
+    assert.equal(exitCode, 1);
+    assert.match(stderr, /invalid --s value "banana", expected a positive integer/);
+  });
+
+  it('rejects an invalid --c value', async () => {
+    const { exitCode, stderr } = await runBin([
+      `--file=${fixture('ok.js')}`,
+      '--c=0',
+    ]);
+
+    assert.equal(exitCode, 1);
+    assert.match(stderr, /invalid --c value "0", expected a positive integer/);
+  });
+
+  it('prints usage for --help and exits 0', async () => {
+    const { exitCode, stdout } = await runBin(['--help']);
+
+    assert.equal(exitCode, 0);
+    assert.match(stdout, /Usage: puppeteer-loadtest --file=script\.js/);
+    assert.match(stdout, /--timeout/);
+    assert.match(stdout, /--delay/);
+  });
+
+  it('handles a script path containing spaces (no shell quoting)', async () => {
+    const { exitCode, stdout } = await runBin([
+      `--file=${path.join('test', 'fixtures', 'dir with spaces', 'spaced.js')}`,
+      '--s=1',
+      '--c=1',
+    ]);
+
+    assert.equal(exitCode, 0);
+    assert.equal(parseResults(stdout).failed, 0);
+  });
 });

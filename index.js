@@ -2,7 +2,7 @@
 
 const createDebug = require('debug');
 const debug = createDebug('puppeteer-loadtest');
-const exec = require('child_process').exec;
+const execFile = require('child_process').execFile;
 const perf = require('execution-time')();
 
 const defaultOptions = {
@@ -48,18 +48,24 @@ const stopConcurrencyLogPerformance = (results, concurrencyCount, samplesCount) 
 
 // #24: an instance outcome always resolves; failures are recorded on the
 // timing entry and counted, never swallowed into debug-only output.
-const executeTheCommand = function({ cmd, concurrencyCount, samplesCount, results, timeout }) {
+const executeTheCommand = function({ file, concurrencyCount, samplesCount, results, timeout }) {
   return new Promise((resolve) => {
     startConcurrencyLogPerformance(results, concurrencyCount, samplesCount);
-    const execOptions = {};
+    // 10MB: puppeteer scripts can be chatty; the 1MB default turns verbose
+    // logging into a spurious failure.
+    const execOptions = { maxBuffer: 10 * 1024 * 1024 };
     if (timeout > 0) {
       execOptions.timeout = timeout;
+      // A hung browser can shrug off SIGTERM; the kill switch must kill.
+      execOptions.killSignal = 'SIGKILL';
     }
-    exec(cmd, execOptions, function(error, stdout, stderr) {
+    // execFile without a shell: paths with spaces work, no quoting bugs.
+    execFile(process.execPath, [file], execOptions, function(error, stdout, stderr) {
       const timing = stopConcurrencyLogPerformance(results, concurrencyCount, samplesCount);
       const outcome = { stdout: stdout || '' };
-      if (error || stderr) {
-        outcome.error = error ? error.message : String(stderr).trim();
+      const stderrText = String(stderr || '').trim();
+      if (error || stderrText) {
+        outcome.error = error ? error.message : stderrText;
         // #82: child_process sets killed=true when the timeout fires.
         outcome.timedOut = Boolean(error && error.killed);
         outcome.exitCode = error && typeof error.code === 'number' ? error.code : null;
@@ -103,10 +109,6 @@ const doAnotherSample = async (options) => {
     delay,
   } = options;
 
-  if (typeof results.failed !== 'number') {
-    results.failed = 0;
-  }
-
   if(samplesCount < samplesRequested) {
     startSampleLogPerformance(results, samplesCount);
     const outcomes = await doConcurrency({ results, samplesCount, concurrencyRequested, file, timeout, delay });
@@ -138,7 +140,7 @@ const doConcurrency = async ({ results, samplesCount, concurrencyRequested, file
     }
     promisesArray.push(
       executeTheCommand({
-        cmd: `node ${file}`,
+        file,
         concurrencyCount: i,
         results,
         samplesCount,
@@ -147,19 +149,19 @@ const doConcurrency = async ({ results, samplesCount, concurrencyRequested, file
     );
   }
 
-  let values;
-  try {
-    perf.start('concurrencyCall');
-    values = await Promise.all(promisesArray);
-    debug(values);
-  } catch(error) {
-    debug(error);
-  }
+  const values = await Promise.all(promisesArray);
+  debug(values);
   return values;
 };
 
 function startPuppeteerLoadTest(paramOptions) {
   const options = Object.assign({}, defaultOptions, paramOptions);
+  // Never share defaultOptions.results between runs: each call gets its own.
+  if (!paramOptions || !paramOptions.results) {
+    options.results = {};
+  }
+  options.samplesCount = 0;
+  options.results.failed = 0;
   return doAnotherSample(options);
 }
 
