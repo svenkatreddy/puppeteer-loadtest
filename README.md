@@ -1,6 +1,6 @@
 # puppeteer-loadtest
 
-[![Build Status](https://travis-ci.org/svenkatreddy/puppeteer-loadtest.svg?branch=master)](https://travis-ci.org/svenkatreddy/puppeteer-loadtest)
+[![CI](https://github.com/svenkatreddy/puppeteer-loadtest/actions/workflows/ci.yml/badge.svg)](https://github.com/svenkatreddy/puppeteer-loadtest/actions/workflows/ci.yml)
 
 [![NPM](https://nodei.co/npm/puppeteer-loadtest.png?stars=true)](https://nodei.co/npm/puppeteer-loadtest/)
 
@@ -22,27 +22,67 @@ This will run the specified puppeteer script once in chrome headless instance.
 
 ### Parameters
 
-`--s` flag is to mention sample size
-`--c` flag is to mention number of concurrent executions per sample
+`--file` path to the puppeteer script to run (required)
+`--s` number of samples to run (default: 1; must be a positive integer)
+`--c` number of concurrent executions per sample (default: 1; must be a positive integer)
+`--timeout` (`-t`) kills an instance if it runs longer than the given milliseconds (0 = no limit, the default)
+`--delay` (`-d`) waits the given milliseconds between spawning concurrent instances, so N Chromium launches don't all hit at once (0 = spawn all at once, the default)
 `--silent` boolean to enable or disable logs
 `--outputFile` send performance results to output file
+`--logs-dir` write each instance's stdout/stderr to `sampleN-instanceM.log` in this directory
+`--help` (`-h`) show usage information
+`--version` (`-v`) show the version number
 
     $ puppeteer-loadtest --s=100 --c=25 --file=sample.js
     
 This will run a total of 100 runs through the specified puppeteer script across 25 concurrent chrome headless instances.
+
+### Failure reporting
+
+An instance counts as failed when its script exits non-zero, writes to stderr, or is killed by `--timeout`. (Note: anything on stderr counts, even warnings — keep noisy scripts' stderr clean or redirect it.) The failure is logged with its sample and instance number, recorded in the results JSON (`failed` counts plus per-instance `error`, `timedOut`, and `exitCode`), and the CLI exits with a non-zero status so scripts and CI can detect it.
+
+Instance output is streamed, not buffered: there is no output size limit, and memory stays flat no matter how chatty a script is. Stdout is discarded unless `--logs-dir` is given, in which case each instance's stdout/stderr is written to `sampleN-instanceM.log` in that directory.
+
+    $ puppeteer-loadtest --file=sample.js --timeout=30000
+    puppeteer-loadtest sample 1: instance 2 failed: timed out after 30000ms and was killed
+    puppeteer-loadtest: 1 instance(s) failed
+    $ echo $?
+    1
+
+### Results JSON
+
+Each run produces an object keyed by sample, with per-instance timings and a failure count:
+
+    {
+        "failed": 0,
+        "sample1": {
+            "sample": { "time": 1234.5, "...": "..." },
+            "concurrency": {
+                "1": { "time": 1201.2, "...": "..." },
+                "2": { "time": 1198.7, "...": "...", "error": "boom", "timedOut": false, "exitCode": 1 }
+            },
+            "failed": 1
+        }
+    }
+
+`failed` at the top level is the total across all samples. A successful instance entry carries only timing fields; a failed one also carries `error`, `timedOut`, and `exitCode`.
 
 
 ### Examples
 
     $ puppeteer-loadtest --file=sample.js
     
-    $ puppeteer-loadtest --file=./test/sample.js  --s=100 --c=25
+    $ puppeteer-loadtest --file=./test/basic.js  --s=100 --c=25
     
-    $ puppeteer-loadtest --file=./test/sample.js  --s=100 --c=25 --silent=true
+    $ puppeteer-loadtest --file=./test/basic.js  --s=100 --c=25 --silent=true
     
-    $ puppeteer-loadtest --file=./test/sample.js  -s 100 -c 25
+    $ puppeteer-loadtest --file=./test/basic.js  -s 100 -c 25
 
-    $ puppeteer-loadtest --file=./test/sample.js  -s 100 -c 25 --outputFile=performance.json
+    $ puppeteer-loadtest --file=./test/basic.js  -s 100 -c 25 --outputFile=performance.json
+
+    $ puppeteer-loadtest --file=./test/basic.js  -s 100 -c 25 --delay=2000
+
+    $ puppeteer-loadtest --file=./test/basic.js  -s 100 -c 25 --timeout=60000
 
 
 ### use as node module 
@@ -53,9 +93,16 @@ This will run a total of 100 runs through the specified puppeteer script across 
         file, // path to file
         samplesRequested, // number of samples requested
         concurrencyRequested, // number of concurrency requested
+        timeout, // kill an instance running longer than this many ms (0 = no limit)
+        delay, // wait this many ms between spawning concurrent instances
+        logsDir, // write per-instance sampleN-instanceM.log files here ('' = discard)
     });
     console.log(results);
     ```
+    
+`results.failed` holds the total number of failed instances across all samples; each sample has its own `failed` count, and each failed instance entry carries `error`, `timedOut`, and `exitCode`.
+
+Known limitation: `--timeout` kills the script process, but a Chromium instance it launched may linger as an orphan — the kill does not propagate to the browser. If you rely on timeouts with large concurrency, watch for stray browser processes.
     
     
 ## Contributors

@@ -1,18 +1,30 @@
 {
-  "name": "puppeteer-loadtest",
-  "version": "2.2.1",
+  "author": "svenkatreddy",
+  "bin": {
+    "puppeteer-loadtest": "bin.js"
+  },
+  "bugs": {
+    "url": "https://github.com/svenkatreddy/puppeteer-loadtest/issues"
+  },
+  "dependencies": {
+    "debug": "^4.4.3",
+    "execution-time": "^1.4.1",
+    "minimist": "^1.2.8",
+    "puppeteer": "^25.12.0"
+  },
   "description": "loadtest puppeteer (Headless Chrome API) script using node",
-  "main": "index.js",
+  "devDependencies": {
+    "mocha": "^12.0.3",
+    "mock-require": "^3.0.3",
+    "sinon": "^22.1.0"
+  },
   "directories": {
     "test": "test"
   },
-  "scripts": {
-    "test": "mocha ./test/index-test.js"
+  "engines": {
+    "node": ">=20"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/svenkatreddy/puppeteer-loadtest.git"
-  },
+  "homepage": "https://github.com/svenkatreddy/puppeteer-loadtest#readme",
   "keywords": [
     "puppeteer",
     "loadtest",
@@ -21,24 +33,22 @@
     "automation",
     "script"
   ],
-  "author": "svenkatreddy",
   "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/svenkatreddy/puppeteer-loadtest/issues"
+  "main": "index.js",
+  "files": [
+    "index.js",
+    "bin.js",
+    "README.md",
+    "CHANGES.md",
+    "LICENSE"
+  ],
+  "name": "puppeteer-loadtest",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/svenkatreddy/puppeteer-loadtest.git"
   },
-  "bin": {
-    "puppeteer-loadtest": "bin.js"
+  "scripts": {
+    "test": "mocha test/index-test.js test/bin-test.js"
   },
-  "homepage": "https://github.com/svenkatreddy/puppeteer-loadtest#readme",
-  "dependencies": {
-    "debug": "^4.1.1",
-    "execution-time": "^1.2.0",
-    "minimist": "^1.2.6",
-    "puppeteer": "^22.11.2"
-  },
-  "devDependencies": {
-    "mocha": "^9.1.2",
-    "mock-require": "^3.0.3",
-    "ultimate-chai": "^4.1.0"
-  }
+  "version": "2.3.0"
 }

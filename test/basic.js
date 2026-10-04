@@ -1,18 +1,18 @@
 const puppeteer = require('puppeteer');
 
-(async() => {
+(async () => {
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ['--no-sandbox'],
+  });
   try {
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox'],
-    });
     const page = await browser.newPage();
     await page.goto('http://example.com');
-    await page.screenshot({path: 'example.png'});
-    console.log("success");
-    browser.close();
-} catch(error) {
-  console.log(error);
-}
-
+    await page.screenshot({ path: 'example.png' });
+    console.log('success');
+  } catch (error) {
+    console.log(error);
+  } finally {
+    await browser.close();
+  }
 })();
