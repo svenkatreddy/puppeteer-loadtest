@@ -3,7 +3,10 @@
 
 const createDebug = require('debug');
 const debug = createDebug('puppeteer-loadtest');
-const argv = require('minimist')(process.argv.slice(2));
+const argv = require('minimist')(process.argv.slice(2), {
+  // Without this, --silent=false parses as the string "false" (truthy).
+  boolean: ['silent', 'help', 'h'],
+});
 const fs = require('fs');
 const startPuppeteerLoadTest = require('.');
 
@@ -46,6 +49,7 @@ Options:
   --silent         suppress the results JSON on stdout
   --outputFile     write the results JSON to this file
   --help, -h       show this help
+  --version, -v    show the version number
 
 An instance counts as failed when its script exits non-zero, writes to
 stderr, or is killed by --timeout. Failures are logged, recorded in the
@@ -54,6 +58,11 @@ results JSON, and make the CLI exit non-zero.`);
 
 if (argv.help || argv.h) {
   printHelp();
+  return;
+}
+
+if (argv.version || argv.v) {
+  console.log(require('./package.json').version);
   return;
 }
 

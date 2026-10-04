@@ -4,11 +4,13 @@
 - Surface instance failures: each failure is logged with its sample/instance, recorded in the results JSON (`failed` counts, per-instance `error`/`timedOut`/`exitCode`), and the CLI exits non-zero when any instance fails (issue #24).
 - Add `--help` (`-h`) usage output; validate `--s`/`--c` (invalid values now error instead of silently running nothing).
 - Run scripts via `execFile` with the current Node binary (no shell): paths with spaces work, no quoting bugs; stdout buffer raised to 10MB; timeout kills use SIGKILL.
+- Drop per-instance stdout retention (nothing consumed it; it bloated memory and debug output at scale); package.json files whitelist; drop stale test/performance.json.
+- Fix `--silent=false` parsing as truthy; add `--version` (`-v`).
 - Fix `startConcurrencyLogPerformance` wiping earlier concurrency entries when starts interleave with stops; each `startPuppeteerLoadTest()` call now gets a fresh results object.
 - Replace Travis CI with GitHub Actions; refresh the npm publish workflow (Node 24, current actions).
 - Update dependencies (puppeteer 25, mocha 12); require Node >= 20.
 - CI runs on Node 22 and 24; `.nvmrc` pins 24; npm publish workflow uses Node 24.
-- Expanded test suite: 26 tests (unit + end-to-end CLI).
+- Expanded test suite: 28 tests (unit + end-to-end CLI).
 
 ## 2.1.1
 - update dependency packages.

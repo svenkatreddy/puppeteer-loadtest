@@ -210,4 +210,26 @@ describe('bin.js', function () {
     assert.equal(exitCode, 0);
     assert.equal(parseResults(stdout).failed, 0);
   });
+
+  it('prints the version for --version and exits 0', async () => {
+    const { exitCode, stdout } = await runBin(['--version']);
+    const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
+
+    assert.equal(exitCode, 0);
+    assert.equal(stdout.trim(), pkg.version);
+  });
+
+  it('--silent=false does not silence output', async () => {
+    const { exitCode, stdout } = await runBin([
+      `--file=${fixture('ok.js')}`,
+      '--s=1',
+      '--c=1',
+      '--silent=false',
+    ]);
+
+    assert.equal(exitCode, 0);
+    // Before the minimist boolean fix, the string "false" was truthy
+    // and this stdout was empty.
+    assert.equal(parseResults(stdout).failed, 0);
+  });
 });

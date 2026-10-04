@@ -62,7 +62,11 @@ const executeTheCommand = function({ file, concurrencyCount, samplesCount, resul
     // execFile without a shell: paths with spaces work, no quoting bugs.
     execFile(process.execPath, [file], execOptions, function(error, stdout, stderr) {
       const timing = stopConcurrencyLogPerformance(results, concurrencyCount, samplesCount);
-      const outcome = { stdout: stdout || '' };
+      // Note: stdout is intentionally not retained. Nothing consumes it
+      // (results JSON and the module API never see it); keeping it would
+      // hold up to maxBuffer per instance in memory and dump it all into
+      // debug output at the end of every sample.
+      const outcome = {};
       const stderrText = String(stderr || '').trim();
       if (error || stderrText) {
         outcome.error = error ? error.message : stderrText;
@@ -150,7 +154,8 @@ const doConcurrency = async ({ results, samplesCount, concurrencyRequested, file
   }
 
   const values = await Promise.all(promisesArray);
-  debug(values);
+  const failed = values.filter((value) => value && value.error).length;
+  debug(`sample ${samplesCount + 1}: ${values.length} finished, ${failed} failed`);
   return values;
 };
 

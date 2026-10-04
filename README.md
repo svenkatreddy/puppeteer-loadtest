@@ -30,6 +30,7 @@ This will run the specified puppeteer script once in chrome headless instance.
 `--silent` boolean to enable or disable logs
 `--outputFile` send performance results to output file
 `--help` (`-h`) show usage information
+`--version` (`-v`) show the version number
 
     $ puppeteer-loadtest --s=100 --c=25 --file=sample.js
     
