@@ -29,6 +29,7 @@ This will run the specified puppeteer script once in chrome headless instance.
 `--delay` (`-d`) waits the given milliseconds between spawning concurrent instances, so N Chromium launches don't all hit at once (0 = spawn all at once, the default)
 `--silent` boolean to enable or disable logs
 `--outputFile` send performance results to output file
+`--logs-dir` write each instance's stdout/stderr to `sampleN-instanceM.log` in this directory
 `--help` (`-h`) show usage information
 `--version` (`-v`) show the version number
 
@@ -38,7 +39,9 @@ This will run a total of 100 runs through the specified puppeteer script across 
 
 ### Failure reporting
 
-An instance counts as failed when its script exits non-zero, writes to stderr, or is killed by `--timeout`. (Note: anything on stderr counts, even warnings — keep noisy scripts' stderr clean or redirect it.) The failure is logged with its sample and instance number, recorded in the results JSON (`failed` counts plus per-instance `error`, `timedOut`, and `exitCode`), and the CLI exits with a non-zero status so scripts and CI can detect it:
+An instance counts as failed when its script exits non-zero, writes to stderr, or is killed by `--timeout`. (Note: anything on stderr counts, even warnings — keep noisy scripts' stderr clean or redirect it.) The failure is logged with its sample and instance number, recorded in the results JSON (`failed` counts plus per-instance `error`, `timedOut`, and `exitCode`), and the CLI exits with a non-zero status so scripts and CI can detect it.
+
+Instance output is streamed, not buffered: there is no output size limit, and memory stays flat no matter how chatty a script is. Stdout is discarded unless `--logs-dir` is given, in which case each instance's stdout/stderr is written to `sampleN-instanceM.log` in that directory.
 
     $ puppeteer-loadtest --file=sample.js --timeout=30000
     puppeteer-loadtest sample 1: instance 2 failed: timed out after 30000ms and was killed
@@ -92,11 +95,14 @@ Each run produces an object keyed by sample, with per-instance timings and a fai
         concurrencyRequested, // number of concurrency requested
         timeout, // kill an instance running longer than this many ms (0 = no limit)
         delay, // wait this many ms between spawning concurrent instances
+        logsDir, // write per-instance sampleN-instanceM.log files here ('' = discard)
     });
     console.log(results);
     ```
     
 `results.failed` holds the total number of failed instances across all samples; each sample has its own `failed` count, and each failed instance entry carries `error`, `timedOut`, and `exitCode`.
+
+Known limitation: `--timeout` kills the script process, but a Chromium instance it launched may linger as an orphan — the kill does not propagate to the browser. If you rely on timeouts with large concurrency, watch for stray browser processes.
     
     
 ## Contributors

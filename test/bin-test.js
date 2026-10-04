@@ -232,4 +232,37 @@ describe('bin.js', function () {
     // and this stdout was empty.
     assert.equal(parseResults(stdout).failed, 0);
   });
+
+  it('handles a chatty script without buffer failure', async () => {
+    // chatty.js prints ~2MB; the old 1MB exec buffer turned this into a
+    // spurious failure. Streaming must pass it.
+    const { exitCode, stdout } = await runBin([
+      `--file=${fixture('chatty.js')}`,
+      '--s=1',
+      '--c=1',
+    ]);
+
+    assert.equal(exitCode, 0);
+    assert.equal(parseResults(stdout).failed, 0);
+  });
+
+  it('writes per-instance logs with --logs-dir', async () => {
+    const logsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'plt-logs-'));
+    try {
+      const { exitCode, stdout } = await runBin([
+        `--file=${fixture('ok.js')}`,
+        '--s=1',
+        '--c=2',
+        `--logs-dir=${logsDir}`,
+      ]);
+
+      assert.equal(exitCode, 0);
+      assert.equal(parseResults(stdout).failed, 0);
+      const files = fs.readdirSync(logsDir).sort();
+      assert.deepEqual(files, ['sample1-instance1.log', 'sample1-instance2.log']);
+      assert.match(fs.readFileSync(path.join(logsDir, files[0]), 'utf8'), /ok/);
+    } finally {
+      fs.rmSync(logsDir, { recursive: true, force: true });
+    }
+  });
 });

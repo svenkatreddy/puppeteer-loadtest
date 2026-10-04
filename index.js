@@ -2,7 +2,9 @@
 
 const createDebug = require('debug');
 const debug = createDebug('puppeteer-loadtest');
-const execFile = require('child_process').execFile;
+const spawn = require('child_process').spawn;
+const fs = require('fs');
+const path = require('path');
 const perf = require('execution-time')();
 
 const defaultOptions = {
@@ -13,9 +15,15 @@ const defaultOptions = {
   timeout: 0,
   // #86: wait this many ms between spawning concurrent instances. 0 = spawn all at once.
   delay: 0,
+  // Write each instance's stdout/stderr to sampleN-instanceM.log here. Empty = discard.
+  logsDir: '',
   results: {},
   samplesCount: 0,
 }
+
+// In-memory stderr capture cap when --logs-dir is not set (only feeds the
+// failure message).
+const STDERR_CAPTURE_LIMIT = 8192;
 
 debug('puppeteer-loadtest is loading...');
 
@@ -48,55 +56,99 @@ const stopConcurrencyLogPerformance = (results, concurrencyCount, samplesCount) 
 
 // #24: an instance outcome always resolves; failures are recorded on the
 // timing entry and counted, never swallowed into debug-only output.
-const executeTheCommand = function({ file, concurrencyCount, samplesCount, results, timeout }) {
+const executeTheCommand = function({ file, concurrencyCount, samplesCount, results, timeout, logsDir }) {
   return new Promise((resolve) => {
     startConcurrencyLogPerformance(results, concurrencyCount, samplesCount);
-    // 10MB: puppeteer scripts can be chatty; the 1MB default turns verbose
-    // logging into a spurious failure.
-    const execOptions = { maxBuffer: 10 * 1024 * 1024 };
-    if (timeout > 0) {
-      execOptions.timeout = timeout;
-      // A hung browser can shrug off SIGTERM; the kill switch must kill.
-      execOptions.killSignal = 'SIGKILL';
+    const sampleNo = samplesCount + 1;
+    const instanceNo = concurrencyCount + 1;
+    const outcome = {};
+    let stderrHead = '';
+    let stderrBytes = 0;
+    let timedOut = false;
+    let finished = false;
+
+    let logStream = null;
+    if (logsDir) {
+      logStream = fs.createWriteStream(path.join(logsDir, `sample${sampleNo}-instance${instanceNo}.log`));
     }
-    // execFile without a shell: paths with spaces work, no quoting bugs.
-    execFile(process.execPath, [file], execOptions, function(error, stdout, stderr) {
+
+    // spawn streams output instead of buffering it: no maxBuffer ceiling,
+    // constant memory no matter how chatty the script is.
+    const child = spawn(process.execPath, [file]);
+    const killTimer = timeout > 0
+      ? setTimeout(() => {
+          timedOut = true;
+          // A hung browser can shrug off SIGTERM; the kill switch must kill.
+          // Note: this kills the script wrapper; a browser it launched may
+          // linger as an orphan (see README).
+          child.kill('SIGKILL');
+        }, timeout)
+      : null;
+
+    child.stdout.on('data', (chunk) => {
+      if (logStream) logStream.write(chunk);
+      // Otherwise discard: nothing consumes instance stdout.
+    });
+    child.stderr.on('data', (chunk) => {
+      stderrBytes += chunk.length;
+      if (logStream) {
+        logStream.write(chunk);
+      } else if (stderrHead.length < STDERR_CAPTURE_LIMIT) {
+        stderrHead += chunk.toString('utf8').slice(0, STDERR_CAPTURE_LIMIT - stderrHead.length);
+      }
+    });
+
+    const finish = (spawnError, code, signal) => {
+      if (finished) return;
+      finished = true;
+      if (killTimer) clearTimeout(killTimer);
       const timing = stopConcurrencyLogPerformance(results, concurrencyCount, samplesCount);
-      // Note: stdout is intentionally not retained. Nothing consumes it
-      // (results JSON and the module API never see it); keeping it would
-      // hold up to maxBuffer per instance in memory and dump it all into
-      // debug output at the end of every sample.
-      const outcome = {};
-      const stderrText = String(stderr || '').trim();
-      if (error || stderrText) {
-        outcome.error = error ? error.message : stderrText;
-        // #82: child_process sets killed=true when the timeout fires.
-        outcome.timedOut = Boolean(error && error.killed);
-        outcome.exitCode = error && typeof error.code === 'number' ? error.code : null;
+      const stderrText = stderrHead.trim();
+      if (spawnError || timedOut || signal || code !== 0 || stderrBytes > 0) {
+        if (timedOut) {
+          outcome.error = `timed out after ${timeout}ms and was killed`;
+        } else if (spawnError) {
+          outcome.error = spawnError.message;
+        } else if (signal) {
+          outcome.error = `killed by signal ${signal}`;
+        } else if (code !== 0) {
+          outcome.error = `exited with code ${code}${stderrText ? `: ${stderrText.split('\n')[0]}` : ''}`;
+        } else {
+          outcome.error = stderrText || 'wrote to stderr';
+        }
+        outcome.timedOut = timedOut;
+        outcome.exitCode = typeof code === 'number' ? code : null;
         Object.assign(timing, {
           error: outcome.error,
           timedOut: outcome.timedOut,
           exitCode: outcome.exitCode,
         });
-        debug(`sample: ${samplesCount + 1}, concurrent: ${concurrencyCount + 1} failed: ${outcome.error}`);
+        debug(`sample: ${sampleNo}, concurrent: ${instanceNo} failed: ${outcome.error}`);
       } else {
-        debug(`sample: ${samplesCount + 1}, concurrent: ${concurrencyCount + 1} ok`);
+        debug(`sample: ${sampleNo}, concurrent: ${instanceNo} ok`);
       }
-      resolve(outcome);
-    });
+      // Wait for the log file to flush so callers observe complete logs.
+      // resolve() is idempotent, so the error path can't double-resolve.
+      if (logStream) {
+        logStream.on('error', () => resolve(outcome));
+        logStream.end(() => resolve(outcome));
+      } else {
+        resolve(outcome);
+      }
+    };
+
+    child.on('error', (error) => finish(error, null, null));
+    child.on('close', (code, signal) => finish(null, code, signal));
   });
 };
 
 // #24/#82: failures are logged to stderr as they happen so a long run
 // doesn't hide them until the end.
-const logSampleFailures = (samplesCount, outcomes, timeout) => {
+const logSampleFailures = (samplesCount, outcomes) => {
   outcomes.forEach((outcome, index) => {
     if (outcome && outcome.error) {
-      const reason = outcome.timedOut
-        ? `timed out after ${timeout}ms and was killed`
-        : outcome.error;
       console.error(
-        `puppeteer-loadtest sample ${samplesCount + 1}: instance ${index + 1} failed: ${reason}`
+        `puppeteer-loadtest sample ${samplesCount + 1}: instance ${index + 1} failed: ${outcome.error}`
       );
     }
   });
@@ -111,17 +163,18 @@ const doAnotherSample = async (options) => {
     results,
     timeout,
     delay,
+    logsDir,
   } = options;
 
   if(samplesCount < samplesRequested) {
     startSampleLogPerformance(results, samplesCount);
-    const outcomes = await doConcurrency({ results, samplesCount, concurrencyRequested, file, timeout, delay });
+    const outcomes = await doConcurrency({ results, samplesCount, concurrencyRequested, file, timeout, delay, logsDir });
     stopSampleLogPerformance(results, samplesCount);
     const failedCount = outcomes.filter((outcome) => outcome && outcome.error).length;
     results[`sample${samplesCount + 1}`].failed = failedCount;
     results.failed += failedCount;
     if (failedCount > 0) {
-      logSampleFailures(samplesCount, outcomes, timeout);
+      logSampleFailures(samplesCount, outcomes);
     }
     samplesCount += 1;
     return doAnotherSample({
@@ -134,7 +187,7 @@ const doAnotherSample = async (options) => {
   return results;
 };
 
-const doConcurrency = async ({ results, samplesCount, concurrencyRequested, file, timeout, delay }) => {
+const doConcurrency = async ({ results, samplesCount, concurrencyRequested, file, timeout, delay, logsDir }) => {
   const promisesArray = [];
 
   for(let i=0; i < concurrencyRequested; i += 1) {
@@ -149,6 +202,7 @@ const doConcurrency = async ({ results, samplesCount, concurrencyRequested, file
         results,
         samplesCount,
         timeout,
+        logsDir,
       })
     );
   }
@@ -167,6 +221,9 @@ function startPuppeteerLoadTest(paramOptions) {
   }
   options.samplesCount = 0;
   options.results.failed = 0;
+  if (options.logsDir) {
+    fs.mkdirSync(options.logsDir, { recursive: true });
+  }
   return doAnotherSample(options);
 }
 

@@ -48,6 +48,7 @@ Options:
   --delay, -d      wait this many ms between spawning concurrent instances (default: 0)
   --silent         suppress the results JSON on stdout
   --outputFile     write the results JSON to this file
+  --logs-dir       write each instance's stdout/stderr to sampleN-instanceM.log here
   --help, -h       show this help
   --version, -v    show the version number
 
@@ -71,6 +72,7 @@ const samplesRequested = parsePositiveInt(argv.s, 's', 1);
 const concurrencyRequested = parsePositiveInt(argv.c, 'c', 1);
 const silent = argv.silent || false;
 const outputFile = argv.outputFile;
+const logsDir = argv['logs-dir'] !== undefined ? argv['logs-dir'] : (argv.logsDir || '');
 
 // #82: --timeout (or -t): kill an instance running longer than this many ms. 0 = no limit.
 const timeout = parseNonNegativeInt(argv.timeout !== undefined ? argv.timeout : argv.t, 'timeout');
@@ -101,6 +103,7 @@ const start = async () => {
     concurrencyRequested,
     timeout,
     delay,
+    logsDir,
   });
 
   if (results) {
